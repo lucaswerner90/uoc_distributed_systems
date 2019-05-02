@@ -128,6 +128,7 @@ public class TSAESessionPartnerSide extends Thread{
 					lsim.log(Level.TRACE, "[TSAESessionPartnerSide] [session: "+current_session_number+"] sent message: "+ msg);
 					localSummary.updateMax(partnerSummary);
 					localAck.updateMax(partnerAck);
+					serverData.getLog().purgeLog(localAck);
 				}
 				
 			}

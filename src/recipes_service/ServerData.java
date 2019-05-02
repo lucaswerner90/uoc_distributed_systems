@@ -33,6 +33,7 @@ import recipes_service.data.AddOperation;
 import recipes_service.data.Operation;
 import recipes_service.data.Recipe;
 import recipes_service.data.Recipes;
+import recipes_service.data.RemoveOperation;
 import recipes_service.tsae.data_structures.Log;
 import recipes_service.tsae.data_structures.Timestamp;
 import recipes_service.tsae.data_structures.TimestampMatrix;
@@ -155,7 +156,13 @@ public class ServerData {
 	}
 	
 	public synchronized void removeRecipe(String recipeTitle){
-		System.err.println("Error: removeRecipe method (recipesService.serverData) not yet implemented");
+		Recipe rcpe = this.recipes.get(recipeTitle);
+		Timestamp timestamp = nextTimestamp();
+		Operation op = new RemoveOperation(recipeTitle, rcpe.getTimestamp(), timestamp);
+		
+		this.log.add(op);
+		this.summary.updateTimestamp(timestamp);
+		this.recipes.remove(recipeTitle);
 	}
 	
 
