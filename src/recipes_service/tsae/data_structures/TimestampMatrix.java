@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Set;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -43,6 +44,8 @@ public class TimestampMatrix implements Serializable{
 	
 	private static final long serialVersionUID = 3331148113387926667L;
 	ConcurrentHashMap<String, TimestampVector> timestampMatrix = new ConcurrentHashMap<String, TimestampVector>();
+	
+	public TimestampMatrix() {}
 	
 	public TimestampMatrix(List<String> participants){
 		// create and empty TimestampMatrix
@@ -65,10 +68,14 @@ public class TimestampMatrix implements Serializable{
 	 * @param tsMatrix
 	 */
 	public synchronized void updateMax(TimestampMatrix tsMatrix){
-		for (Iterator<String> it = timestampMatrix.keySet().iterator(); it.hasNext(); ){
-			String node = it.next();
-			timestampMatrix.get(node).updateMax(tsMatrix.getTimestampVector(node));
-		}
+		Set<String> hosts = tsMatrix.timestampMatrix.keySet();
+		for (String host : hosts) {
+			TimestampVector tsv = timestampMatrix.get(host);
+			TimestampVector tref = tsMatrix.getTimestampVector(host);
+			if(tsv != null)
+				tsv.updateMax(tref);
+		}	
+
 	}
 	
 	/**
@@ -77,7 +84,10 @@ public class TimestampMatrix implements Serializable{
 	 * @param tsVector
 	 */
 	public void update(String node, TimestampVector tsVector){
-		timestampMatrix.put(node, tsVector);
+		if(timestampMatrix.get(node) != null)
+			timestampMatrix.replace(node, tsVector);
+		else
+			timestampMatrix.put(node, tsVector);
 	}
 	
 	/**
@@ -86,45 +96,75 @@ public class TimestampMatrix implements Serializable{
 	 * the timestamp known by all participants
 	 */
 	public TimestampVector minTimestampVector(){
-		TimestampVector min = null;
-		
-		for (Iterator<String> it = timestampMatrix.keySet().iterator(); it.hasNext(); ){
-			String node = it.next();
-			if (min == null) {
-				min = timestampMatrix.get(node).clone();
-			} else {
-				min.mergeMin(timestampMatrix.get(node));
+		TimestampVector minVector = null;
+		Set<String> hosts = timestampMatrix.keySet();
+
+		//iterate between the vectors on this timestampMatrix
+		for (String host : hosts) {
+			TimestampVector tsv = timestampMatrix.get(host);
+			if (minVector != null){
+				//merge current vector (tsv) with minVector to 
+				//obtain the minium timestamp of both of them
+				minVector.mergeMin(tsv);
+			}else{
+				//Initialization of the minVector with a clone of
+				//the current vector(tsv)
+				minVector = tsv.clone();
 			}
 		}
-		return min;
+		return minVector;
+	}
+	public void setTimestampMatrix(ConcurrentHashMap<String, TimestampVector> timestampMatrix) {
+		this.timestampMatrix = timestampMatrix;
 	}
 	
 	/**
 	 * clone
 	 */
 	public TimestampMatrix clone(){
-		List<String> participants = new ArrayList<String>(timestampMatrix.keySet());
-		TimestampMatrix matrix = new TimestampMatrix(participants);
-		for (Iterator<String> it = timestampMatrix.keySet().iterator(); it.hasNext(); ){
-			String participant = it.next();
-			matrix.update(participant, timestampMatrix.get(participant));
+		Set<String> hosts = timestampMatrix.keySet();
+		ConcurrentHashMap<String, TimestampVector> copy = new ConcurrentHashMap<String, TimestampVector>();
+		
+		for (String host : hosts) {
+			TimestampVector copyVector = timestampMatrix.get(host).clone();
+			copy.put(host, copyVector);
 		}
-		return matrix;
+		
+		List<String> hostsList = new ArrayList<String> (hosts);
+		TimestampMatrix tsMat = new TimestampMatrix(hostsList);
+		tsMat.setTimestampMatrix(copy);
+		TimestampMatrix copyTMatrix = new TimestampMatrix();
+
+		for(String host: hosts) {
+			TimestampVector copyVector = timestampMatrix.get(host).clone();
+			copyTMatrix.timestampMatrix.put(host, copyVector);
+		}
+
+		return copyTMatrix;
 	}
 	
 	/**
 	 * equals
 	 */
 	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		TimestampMatrix other = (TimestampMatrix) obj;
-		return other.timestampMatrix.equals(timestampMatrix);
+	public boolean equals(Object matrix) {
+		if (matrix == null) 
+            return false;
+        if (this == matrix) 
+            return true;
+        if ((getClass() != matrix.getClass())) 
+            return false;
+  
+        TimestampMatrix other = (TimestampMatrix) matrix;
+
+        if (this.timestampMatrix == other.timestampMatrix) 
+            return true;
+        if (this.timestampMatrix == null) 
+        	return false;
+        if (other.timestampMatrix == null) 
+            return false;
+        else 
+            return this.timestampMatrix.equals(other.timestampMatrix);
 	}
 
 	
