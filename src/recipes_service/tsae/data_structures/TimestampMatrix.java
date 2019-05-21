@@ -76,7 +76,7 @@ public class TimestampMatrix implements Serializable{
 	 * @param node
 	 * @param tsVector
 	 */
-	public void update(String node, TimestampVector tsVector){
+	public synchronized void update(String node, TimestampVector tsVector){
 		timestampMatrix.put(node, tsVector);
 	}
 	
@@ -85,7 +85,7 @@ public class TimestampMatrix implements Serializable{
 	 * @return a timestamp vector containing, for each node, 
 	 * the timestamp known by all participants
 	 */
-	public TimestampVector minTimestampVector(){
+	public synchronized TimestampVector minTimestampVector(){
 		TimestampVector min = null;
 		
 		for (Iterator<String> it = timestampMatrix.keySet().iterator(); it.hasNext(); ){
@@ -102,7 +102,7 @@ public class TimestampMatrix implements Serializable{
 	/**
 	 * clone
 	 */
-	public TimestampMatrix clone(){
+	public synchronized TimestampMatrix clone(){
 		List<String> participants = new ArrayList<String>(timestampMatrix.keySet());
 		TimestampMatrix matrix = new TimestampMatrix(participants);
 		for (Iterator<String> it = timestampMatrix.keySet().iterator(); it.hasNext(); ){
@@ -116,7 +116,7 @@ public class TimestampMatrix implements Serializable{
 	 * equals
 	 */
 	@Override
-	public boolean equals(Object obj) {
+	public synchronized boolean equals(Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
@@ -124,7 +124,14 @@ public class TimestampMatrix implements Serializable{
 		if (getClass() != obj.getClass())
 			return false;
 		TimestampMatrix other = (TimestampMatrix) obj;
-		return other.timestampMatrix.equals(timestampMatrix);
+		for (String node : timestampMatrix.keySet()) {
+			TimestampVector summary = this.getTimestampVector(node);
+			TimestampVector otherSummary = other.getTimestampVector(node);
+			if (summary != otherSummary) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	
