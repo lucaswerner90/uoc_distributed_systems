@@ -31,6 +31,7 @@ import recipes_service.communication.Host;
 import recipes_service.communication.Hosts;
 import recipes_service.data.AddOperation;
 import recipes_service.data.Operation;
+import recipes_service.data.OperationType;
 import recipes_service.data.Recipe;
 import recipes_service.data.Recipes;
 import recipes_service.data.RemoveOperation;
@@ -165,6 +166,16 @@ public class ServerData {
 		this.recipes.remove(recipeTitle);
 	}
 	
+	public synchronized void runOperation(Operation op)
+	{
+		if (op.getType() == OperationType.ADD) {
+			AddOperation addOp = (AddOperation) op;
+			recipes.add(addOp.getRecipe());
+		} else {
+			RemoveOperation removeOp = (RemoveOperation) op;
+			recipes.remove(removeOp.getRecipeTitle());
+		}
+	}
 
 	// ****************************************************************************
 	// *** operations to get the TSAE data structures. Used to send to evaluation

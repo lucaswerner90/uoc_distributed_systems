@@ -25,7 +25,6 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Map;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -98,18 +97,15 @@ public class Log implements Serializable{
 	 * @return list of operations
 	 */
 	public synchronized List<Operation> listNewer(TimestampVector sum){
-		List<Operation> ops, newer;
-		Operation op;	
-		Timestamp t, last;
-		newer = new Vector<Operation>();
-		for(Map.Entry<String, List<Operation>> entry : this.log.entrySet()) {
-			last = sum.getLast(entry.getKey());
-			ops = entry.getValue();
-			Iterator<Operation> it = ops.iterator();
-			while(it.hasNext()){
-				op = it.next();
-				t = op.getTimestamp();
-				if(t.compare(last) > 0) {
+		
+		List<Operation> newer = new Vector<Operation>();
+		
+		for (String node : log.keySet()) {
+			List<Operation> operations = log.get(node);
+			Timestamp ts = sum.getLast(node);
+			
+			for (Operation op : operations) {
+				if (op.getTimestamp().compare(ts) > 0) {
 					newer.add(op);
 				}
 			}
@@ -124,7 +120,7 @@ public class Log implements Serializable{
 	 * ackSummary. 
 	 * @param ack: ackSummary.
 	 */
-	public void purgeLog(TimestampMatrix ack){
+	public synchronized void purgeLog(TimestampMatrix ack){
 		List<String> participants = new Vector<String>(this.log.keySet());
 		TimestampVector min = ack.minTimestampVector();
 		for (Iterator<String> it = participants.iterator(); it.hasNext(); ){
@@ -149,10 +145,30 @@ public class Log implements Serializable{
 		if (getClass() != obj.getClass())
 			return false;
 		Log other = (Log) obj;
-		for(Map.Entry<String, List<Operation>> entry : this.log.entrySet()) {
+		/*for(Map.Entry<String, List<Operation>> entry : this.log.entrySet()) {
 			List <Operation> otherOps = other.log.get(entry.getKey());
 			if(!entry.getValue().equals(otherOps))
+				System.out.println("LOS LOG NO SON IGUALES");
 				return false;
+		}*/
+		List<Operation> ops = new Vector<Operation>();
+		List<Operation> otherOps = new Vector<Operation>();
+		List<Operation> loopOps, comparingOps;
+		for (String node : log.keySet()) {
+			ops = log.get(node);
+			otherOps = other.log.get(node);
+			if (ops.size() >= otherOps.size()) {
+				loopOps = ops;
+				comparingOps = otherOps;
+			} else {
+				loopOps = otherOps;
+				comparingOps = ops;
+			}
+			for (Operation op : loopOps) {
+				if (!comparingOps.contains(op)) {
+					return false;
+				}
+			}
 		}
 		return true;
 	}

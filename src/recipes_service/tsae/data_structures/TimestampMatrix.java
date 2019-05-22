@@ -83,11 +83,8 @@ public class TimestampMatrix implements Serializable{
 	 * @param node
 	 * @param tsVector
 	 */
-	public void update(String node, TimestampVector tsVector){
-		if(timestampMatrix.get(node) != null)
-			timestampMatrix.replace(node, tsVector);
-		else
-			timestampMatrix.put(node, tsVector);
+	public synchronized void update(String node, TimestampVector tsVector){
+		timestampMatrix.put(node, tsVector);
 	}
 	
 	/**
@@ -95,21 +92,16 @@ public class TimestampMatrix implements Serializable{
 	 * @return a timestamp vector containing, for each node, 
 	 * the timestamp known by all participants
 	 */
-	public TimestampVector minTimestampVector(){
-		TimestampVector minVector = null;
-		Set<String> hosts = timestampMatrix.keySet();
+	public synchronized TimestampVector minTimestampVector(){
+		TimestampVector min = null;
+		
+		for (Iterator<String> it = timestampMatrix.keySet().iterator(); it.hasNext(); ){
+			String node = it.next();
+			if (min == null) {
+				min = timestampMatrix.get(node).clone();
+			} else {
+				min.mergeMin(timestampMatrix.get(node));
 
-		//iterate between the vectors on this timestampMatrix
-		for (String host : hosts) {
-			TimestampVector tsv = timestampMatrix.get(host);
-			if (minVector != null){
-				//merge current vector (tsv) with minVector to 
-				//obtain the minium timestamp of both of them
-				minVector.mergeMin(tsv);
-			}else{
-				//Initialization of the minVector with a clone of
-				//the current vector(tsv)
-				minVector = tsv.clone();
 			}
 		}
 		return minVector;
@@ -121,23 +113,12 @@ public class TimestampMatrix implements Serializable{
 	/**
 	 * clone
 	 */
-	public TimestampMatrix clone(){
-		Set<String> hosts = timestampMatrix.keySet();
-		ConcurrentHashMap<String, TimestampVector> copy = new ConcurrentHashMap<String, TimestampVector>();
-		
-		for (String host : hosts) {
-			TimestampVector copyVector = timestampMatrix.get(host).clone();
-			copy.put(host, copyVector);
-		}
-		
-		List<String> hostsList = new ArrayList<String> (hosts);
-		TimestampMatrix tsMat = new TimestampMatrix(hostsList);
-		tsMat.setTimestampMatrix(copy);
-		TimestampMatrix copyTMatrix = new TimestampMatrix();
-
-		for(String host: hosts) {
-			TimestampVector copyVector = timestampMatrix.get(host).clone();
-			copyTMatrix.timestampMatrix.put(host, copyVector);
+	public synchronized TimestampMatrix clone(){
+		List<String> participants = new ArrayList<String>(timestampMatrix.keySet());
+		TimestampMatrix matrix = new TimestampMatrix(participants);
+		for (Iterator<String> it = timestampMatrix.keySet().iterator(); it.hasNext(); ){
+			String participant = it.next();
+			matrix.update(participant, timestampMatrix.get(participant));
 		}
 
 		return copyTMatrix;
@@ -147,24 +128,22 @@ public class TimestampMatrix implements Serializable{
 	 * equals
 	 */
 	@Override
-	public boolean equals(Object matrix) {
-		if (matrix == null) 
-            return false;
-        if (this == matrix) 
-            return true;
-        if ((getClass() != matrix.getClass())) 
-            return false;
-  
-        TimestampMatrix other = (TimestampMatrix) matrix;
-
-        if (this.timestampMatrix == other.timestampMatrix) 
-            return true;
-        if (this.timestampMatrix == null) 
-        	return false;
-        if (other.timestampMatrix == null) 
-            return false;
-        else 
-            return this.timestampMatrix.equals(other.timestampMatrix);
+	public synchronized boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		TimestampMatrix other = (TimestampMatrix) obj;
+		for (String node : timestampMatrix.keySet()) {
+			TimestampVector summary = this.getTimestampVector(node);
+			TimestampVector otherSummary = other.getTimestampVector(node);
+			if (summary != otherSummary) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	

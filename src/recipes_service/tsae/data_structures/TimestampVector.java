@@ -145,7 +145,7 @@ public class TimestampVector implements Serializable {
 			return false;
 		TimestampVector other = (TimestampVector) obj;
 		for (Map.Entry<String, Timestamp> entry : this.timestampVector.entrySet()) {
-			if (entry.getValue().equals(other.getLast(entry.getKey()))) {
+			if (!entry.getValue().equals(other.getLast(entry.getKey()))) {
 				return false;
 			}
 		}
