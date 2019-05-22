@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Set;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -43,6 +44,8 @@ public class TimestampMatrix implements Serializable{
 	
 	private static final long serialVersionUID = 3331148113387926667L;
 	ConcurrentHashMap<String, TimestampVector> timestampMatrix = new ConcurrentHashMap<String, TimestampVector>();
+	
+	public TimestampMatrix() {}
 	
 	public TimestampMatrix(List<String> participants){
 		// create and empty TimestampMatrix
@@ -65,10 +68,14 @@ public class TimestampMatrix implements Serializable{
 	 * @param tsMatrix
 	 */
 	public synchronized void updateMax(TimestampMatrix tsMatrix){
-		for (Iterator<String> it = timestampMatrix.keySet().iterator(); it.hasNext(); ){
-			String node = it.next();
-			timestampMatrix.get(node).updateMax(tsMatrix.getTimestampVector(node));
-		}
+		Set<String> hosts = tsMatrix.timestampMatrix.keySet();
+		for (String host : hosts) {
+			TimestampVector tsv = timestampMatrix.get(host);
+			TimestampVector tref = tsMatrix.getTimestampVector(host);
+			if(tsv != null)
+				tsv.updateMax(tref);
+		}	
+
 	}
 	
 	/**
@@ -94,9 +101,13 @@ public class TimestampMatrix implements Serializable{
 				min = timestampMatrix.get(node).clone();
 			} else {
 				min.mergeMin(timestampMatrix.get(node));
+
 			}
 		}
-		return min;
+		return minVector;
+	}
+	public void setTimestampMatrix(ConcurrentHashMap<String, TimestampVector> timestampMatrix) {
+		this.timestampMatrix = timestampMatrix;
 	}
 	
 	/**
@@ -109,7 +120,8 @@ public class TimestampMatrix implements Serializable{
 			String participant = it.next();
 			matrix.update(participant, timestampMatrix.get(participant));
 		}
-		return matrix;
+
+		return copyTMatrix;
 	}
 	
 	/**
